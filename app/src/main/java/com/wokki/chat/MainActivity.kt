@@ -75,8 +75,7 @@ class MainActivity : AppCompatActivity() {
             if (url == null || view == null) {
                 return false
             }
-            if (view.url?.startsWith("https://jonazwetsloot.nl/chat/") == false && view.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/") == false) {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            if (view.url?.startsWith("https://jonazwetsloot.nl/chat/") == false && view.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/") == false) {                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 ContextCompat.startActivity(view.context, browserIntent, null)
                 return true
