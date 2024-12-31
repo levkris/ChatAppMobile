@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             if (url == null || view == null) {
                 return false
             }
-            if (!(url.startsWith("https://levgames.nl") || url.startsWith("https://jonazwetsloot.nl"))) {
+            if (!(url.startsWith("https://levgames.nl/jonazwetsloot/chat/api") || url.startsWith("https://jonazwetsloot.nl/chat"))) {
                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 ContextCompat.startActivity(view.context, browserIntent, null)
