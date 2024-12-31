@@ -72,15 +72,23 @@ class MainActivity : AppCompatActivity() {
     // Custom WebViewClient to handle external links
     private class MyWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+            // Ensure URL and WebView are not null
             if (url == null || view == null) {
                 return false
             }
-            if (view.url?.startsWith("https://jonazwetsloot.nl/chat/") == false && view.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/") == false) {                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+
+            // Check if the URL is within the allowed domains
+            if (url.startsWith("https://jonazwetsloot.nl/chat/") ||
+                url.startsWith("https://levgames.nl/jonazwetsloot/chat/")) {
+                // If the URL is in the allowed domain, load it within the WebView
+                return false
+            } else {
+                // If the URL is not in the allowed domain, open it in an external browser
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 ContextCompat.startActivity(view.context, browserIntent, null)
                 return true
             }
-            return false
         }
     }
 }
