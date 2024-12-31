@@ -1,8 +1,6 @@
 package com.wokki.chat
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -12,8 +10,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.view.KeyEvent
-import androidx.core.content.ContextCompat
-import android.content.SharedPreferences
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         // Initialize SharedPreferences
         sharedPreferences = getSharedPreferences("WebViewPrefs", MODE_PRIVATE)
 
-        // Find the WebView by ID from your XML
         webView = findViewById(R.id.webView)
 
         // Enable JavaScript
@@ -39,7 +34,7 @@ class MainActivity : AppCompatActivity() {
         webSettings.domStorageEnabled = true
 
         // Set up the WebViewClient to handle links inside the WebView
-        webView.webViewClient = MyWebViewClient()
+        webView.webViewClient = WebViewClient()
 
         // Load the last visited URL from SharedPreferences or a default URL
         val lastVisitedUrl = sharedPreferences.getString("lastVisitedUrl", "https://levgames.nl/jonazwetsloot/chat/api/")
@@ -67,28 +62,5 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         val currentUrl = webView.url
         sharedPreferences.edit().putString("lastVisitedUrl", currentUrl).apply() // Save the current URL to SharedPreferences
-    }
-
-    // Custom WebViewClient to handle external links
-    private class MyWebViewClient : WebViewClient() {
-        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-            // Ensure URL and WebView are not null
-            if (url == null || view == null) {
-                return false
-            }
-
-            // Check if the URL is within the allowed domains
-            if (url.startsWith("https://jonazwetsloot.nl/chat/") ||
-                url.startsWith("https://levgames.nl/jonazwetsloot/chat/")) {
-                // If the URL is in the allowed domain, load it within the WebView
-                return false
-            } else {
-                // If the URL is not in the allowed domain, open it in an external browser
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                ContextCompat.startActivity(view.context, browserIntent, null)
-                return true
-            }
-        }
     }
 }
