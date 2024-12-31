@@ -38,14 +38,6 @@ class MainActivity : AppCompatActivity() {
         // Enable LocalStorage
         webSettings.domStorageEnabled = true
 
-        // Disable Zooming
-        webSettings.setBuiltInZoomControls(false) // Disable zoom controls
-        webSettings.setDisplayZoomControls(false) // Disable on-screen zoom controls
-
-        // Prevent stretching and ensure the web content fits the screen
-        webSettings.setUseWideViewPort(true) // Ensure that the WebView can scale to the content
-        webSettings.setLoadWithOverviewMode(true) // Ensure the WebView loads the content properly
-
         // Set up the WebViewClient to handle links inside the WebView
         webView.webViewClient = MyWebViewClient()
 
@@ -77,20 +69,24 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putString("lastVisitedUrl", currentUrl).apply() // Save the current URL to SharedPreferences
     }
 
-    // Custom WebViewClient to handle external links
     private class MyWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
             if (url == null || view == null) {
                 return false
             }
-            if (!(url.startsWith("https://levgames.nl/jonazwetsloot/chat/api") || url.startsWith("https://jonazwetsloot.nl/chat"))) {
+
+            // Check if the URL starts with the specified domains
+            return if (url.startsWith("https://levgames.nl/jonazwetsloot") ||
+                url.startsWith("https://jonazwetsloot.nl/chat/api")) {
+                false // Allow WebView to load the URL
+            } else {
+                // Open external URLs in the default browser
                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 ContextCompat.startActivity(view.context, browserIntent, null)
-                return true
+                true // Prevent WebView from loading this URL
             }
-            // Stay in webview if the URL is from "test.nl" or "jonazwetsloot.nl"
-            return false
         }
     }
+
 }
