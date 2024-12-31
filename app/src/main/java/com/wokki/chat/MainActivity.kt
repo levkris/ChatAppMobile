@@ -76,8 +76,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Check if the URL starts with the specified domains
-            return if (url.startsWith("https://levgames.nl/jonazwetsloot") ||
-                url.startsWith("https://jonazwetsloot.nl/chat/api")) {
+            return if (url.startsWith("https://levgames.nl/jonazwetsloot/chat/api") ||
+                url.startsWith("https://jonazwetsloot.nl/chat")) {
                 false // Allow WebView to load the URL
             } else {
                 // Open external URLs in the default browser
