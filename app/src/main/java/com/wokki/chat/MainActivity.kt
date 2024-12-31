@@ -69,24 +69,19 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences.edit().putString("lastVisitedUrl", currentUrl).apply() // Save the current URL to SharedPreferences
     }
 
+    // Custom WebViewClient to handle external links
     private class MyWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
             if (url == null || view == null) {
                 return false
             }
-
-            // Check if the URL starts with the specified domains
-            return if (url.startsWith("https://levgames.nl/jonazwetsloot/chat/api") ||
-                url.startsWith("https://jonazwetsloot.nl/chat")) {
-                false // Allow WebView to load the URL
-            } else {
-                // Open external URLs in the default browser
+            if (view.url?.startsWith("https://jonazwetsloot.nl/chat/") == false && view.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/") == false) {
                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 ContextCompat.startActivity(view.context, browserIntent, null)
-                true // Prevent WebView from loading this URL
+                return true
             }
+            return false
         }
     }
-
 }
