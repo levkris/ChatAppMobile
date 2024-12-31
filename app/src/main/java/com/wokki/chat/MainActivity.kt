@@ -38,6 +38,14 @@ class MainActivity : AppCompatActivity() {
         // Enable LocalStorage
         webSettings.domStorageEnabled = true
 
+        // Disable Zooming
+        webSettings.setBuiltInZoomControls(false) // Disable zoom controls
+        webSettings.setDisplayZoomControls(false) // Disable on-screen zoom controls
+
+        // Prevent stretching and ensure the web content fits the screen
+        webSettings.setUseWideViewPort(true) // Ensure that the WebView can scale to the content
+        webSettings.setLoadWithOverviewMode(true) // Ensure the WebView loads the content properly
+
         // Set up the WebViewClient to handle links inside the WebView
         webView.webViewClient = MyWebViewClient()
 
