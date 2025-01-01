@@ -105,19 +105,23 @@ class MainActivity : AppCompatActivity() {
             val screenHeight = rootLayout.rootView.height
             val keypadHeight = screenHeight - r.bottom
 
-            // If the keyboard is visible, move the entire layout upwards
-            if (keypadHeight > screenHeight * 0.15) {
-                // Save the initial top position of the layout
-                if (initialLayoutTop == 0) {
-                    initialLayoutTop = rootLayout.top
-                }
+            // Only adjust layout if the URL starts with "levgames.nl/jonazwetsloot/chat/api"
+            if (webView.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/api") == true) {
+                // If the keyboard is visible, move the entire layout upwards
+                if (keypadHeight > screenHeight * 0.15) {
+                    // Save the initial top position of the layout
+                    if (initialLayoutTop == 0) {
+                        initialLayoutTop = rootLayout.top
+                    }
 
-                val translationY = -keypadHeight.toFloat()  // Move up by the height of the keyboard
-                rootLayout.translationY = translationY  // Move the layout upwards
-            } else {
-                // Restore the layout's original position when the keyboard is hidden
-                rootLayout.translationY = 0f
+                    val translationY = -keypadHeight.toFloat()  // Move up by the height of the keyboard
+                    rootLayout.translationY = translationY  // Move the layout upwards
+                } else {
+                    // Restore the layout's original position when the keyboard is hidden
+                    rootLayout.translationY = 0f
+                }
             }
         }
     }
 }
+
