@@ -3,9 +3,6 @@ package com.wokki.chat
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
-import android.view.ViewTreeObserver
-import android.widget.LinearLayout
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -14,6 +11,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.constraintlayout.widget.ConstraintLayout
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.os.AsyncTask
+import android.util.Log
+import android.webkit.WebResourceRequest
+import android.widget.Toast
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var rootLayout: ConstraintLayout
     private var initialLayoutTop: Int = 0
+    private val appVersionUrl = "https://levgames.nl/jonazwetsloot/chat/api/app/version.json" // URL to fetch the version info
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +61,9 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
 
+                // Check for update only after the page has finished loading
+                checkForUpdate()
+
                 // Inject JavaScript to hide the androidAppNotif element after the page is loaded
                 val jsCode = """
                     var androidAppNotif = document.getElementById('androidAppNotif');
@@ -79,6 +89,70 @@ class MainActivity : AppCompatActivity() {
 
         // Ensure textboxes move above the keyboard
         adjustWebViewForKeyboard()
+    }
+
+    private fun checkForUpdate() {
+        // Get the current app version
+        val currentVersion = getAppVersion()
+
+        // Fetch the version number from the server
+        FetchVersionTask().execute(currentVersion)
+    }
+
+    private fun getAppVersion(): String {
+        val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, 0)
+        return packageInfo.versionName ?: "0.0.0"
+    }
+
+    private inner class FetchVersionTask : AsyncTask<String, Void, String>() {
+
+        override fun doInBackground(vararg params: String?): String? {
+            try {
+                // Make a request to fetch version.json from the server
+                val url = URL(appVersionUrl)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connect()
+
+                val inputStream = connection.inputStream
+                val response = inputStream.bufferedReader().use { it.readText() }
+                val jsonResponse = JSONObject(response)
+
+                // Assuming the version is provided as a string under "version"
+                return jsonResponse.optString("version")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching version info", e)
+            }
+            return null
+        }
+
+        override fun onPostExecute(result: String?) {
+            super.onPostExecute(result)
+
+            if (result != null && isNewVersionAvailable(result)) {
+                // New version available, show an HTML notification in the WebView
+                showUpdateNotification()
+            }
+        }
+    }
+
+    private fun isNewVersionAvailable(serverVersion: String): Boolean {
+        val currentVersion = getAppVersion()
+
+        // Compare version numbers (this could be done more robustly with a version comparison library)
+        return serverVersion > currentVersion
+    }
+
+    private fun showUpdateNotification() {
+        val jsCode = """
+            var updateMsg = document.getElementById('androidUpdateMSG');
+            if (updateMsg) {
+                updateMsg.style.display = 'block';
+            } else {
+                console.log('Element not found');
+            }
+        """
+        webView.evaluateJavascript(jsCode, null)
     }
 
     // Override the back button behavior to support back swipe functionality
@@ -124,4 +198,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
