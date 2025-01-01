@@ -20,6 +20,8 @@ import android.widget.Toast
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import android.content.Intent
+import android.net.Uri
 
 class MainActivity : AppCompatActivity() {
 
@@ -73,6 +75,16 @@ class MainActivity : AppCompatActivity() {
                 """
                 // Execute JavaScript to hide the element
                 webView.evaluateJavascript(jsCode, null)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                // If the URL is an APK link, open it in the browser
+                if (url?.endsWith(".apk") == true) {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(intent)
+                    return true
+                }
+                return super.shouldOverrideUrlLoading(view, url)
             }
         }
 
@@ -148,8 +160,6 @@ class MainActivity : AppCompatActivity() {
             var updateMsg = document.getElementById('androidUpdateMSG');
             if (updateMsg) {
                 updateMsg.style.display = 'block';
-            } else {
-                console.log('Element not found');
             }
         """
         webView.evaluateJavascript(jsCode, null)
