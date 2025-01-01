@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No Internet Connection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            text-align: center;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+        .container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #333333;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 50px;
+            z-index: 1; /* Ensure it's above the cat image */
+        }
+        h1 {
+            color: #ff5c5c;
+        }
+        p {
+            color: #fff;
+            font-size: 18px;
+        }
+        .icon {
+            font-size: 50px;
+            color: #ff5c5c;
+        }
+        .reload-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #ff5c5c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .reload-btn:hover {
+            background-color: #ff3b3b;
+        }
+
+        #cat {
+            position: absolute;
+            width: 100px;
+            z-index: -1; /* Ensure it's behind the main content */
+            transform-origin: center; /* Set the center of rotation */
+            transition: transform 0.1s ease; /* Smooth rotation transition */
+        }
+
+        /* This container will act as the backdrop for the animation */
+        #background-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: 0; /* Behind everything else */
+        }
+    </style>
+</head>
+<body>
+<!-- This container will act as the backdrop for the animation -->
+<div id="background-container">
+    <img id="cat" src="cat.svg" />
+</div>
+
+<div class="container">
+    <div class="icon">⚠️</div>
+    <h1>Lost in space</h1>
+    <p>It seems you're not connected to the internet. Please check your connection and try again.</p>
+
+    <!-- Reload Button -->
+    <button class="reload-btn" onclick="reloadPage()">Reload</button>
+</div>
+
+<script>
+    const element = document.getElementById('cat');
+    const container = document.getElementById('background-container');
+
+    let posX = Math.random() * (container.clientWidth - element.offsetWidth); // Ensure it fits inside the container
+    let posY = Math.random() * (container.clientHeight - element.offsetHeight); // Ensure it fits inside the container
+    let velocityX = (Math.random() - 0.5) * 15; // Horizontal velocity
+    let velocityY = (Math.random() - 0.5) * 15; // Vertical velocity
+    let rotationAngle = 0; // Initial rotation angle
+    let rotationSpeed = (Math.random() - 0.5) * 5; // Random rotation speed (between -2.5 and 2.5 degrees per frame)
+
+    // Set the initial position of the element
+    element.style.left = `${posX}px`;
+    element.style.top = `${posY}px`;
+
+    function animate() {
+        // Move the element
+        posX += velocityX;
+        posY += velocityY;
+
+        // If the element hits the left or right edge, reverse the direction (bounce effect)
+        if (posX <= 0 || posX + element.offsetWidth >= container.clientWidth) {
+            velocityX = -velocityX;
+        }
+
+        // If the element hits the top or bottom edge, reverse the direction (bounce effect)
+        if (posY <= 0 || posY + element.offsetHeight >= container.clientHeight) {
+            velocityY = -velocityY;
+        }
+
+        // Update the element's position
+        element.style.left = `${posX}px`;
+        element.style.top = `${posY}px`;
+
+        // Increase rotation angle based on random speed
+        rotationAngle += rotationSpeed; // Apply the random rotation speed
+        element.style.transform = `rotate(${rotationAngle}deg)`; // Apply rotation
+
+        // Request the next animation frame
+        requestAnimationFrame(animate);
+    }
+
+    // Start the animation
+    animate();
+
+    // Reload the page when the button is clicked
+    function reloadPage() {
+        window.location.href = "https://levgames.nl/jonazwetsloot/chat/api"; // Redirect to the specified URL
+    }
+
+</script>
+</body>
+</html>

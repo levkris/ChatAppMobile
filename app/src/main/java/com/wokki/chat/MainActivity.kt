@@ -22,6 +22,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import android.content.Intent
 import android.net.Uri
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkInfo
+import android.webkit.WebResourceError
 
 class MainActivity : AppCompatActivity() {
 
@@ -77,6 +81,8 @@ class MainActivity : AppCompatActivity() {
                 webView.evaluateJavascript(jsCode, null)
             }
 
+
+
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 // If the URL is an APK link, open it in the browser
                 if (url?.endsWith(".apk") == true) {
@@ -86,11 +92,34 @@ class MainActivity : AppCompatActivity() {
                 }
                 return super.shouldOverrideUrlLoading(view, url)
             }
+                override fun onReceivedError(
+                    view: WebView, request: WebResourceRequest,
+                    error: WebResourceError
+                ) {
+                    super.onReceivedError(view, request, error)
+
+                    // Check if there is an internet connection
+                    if (isNetworkAvailable(applicationContext)) {
+                        // If internet is available but error still occurs, load a fallback page
+                        webView.loadUrl("about:blank")  // Load a blank page or show error page
+                    } else {
+                        // If there's no internet, load the "no Wi-Fi" page
+                        webView.loadUrl("file:///android_asset/nowifi.html")
+                    }
+                }
+
         }
 
-        // Load the last visited URL from SharedPreferences or a default URL
+// Load the last visited URL from SharedPreferences or a default URL
         val lastVisitedUrl = sharedPreferences.getString("lastVisitedUrl", "https://levgames.nl/jonazwetsloot/chat/api/")
-        webView.loadUrl(lastVisitedUrl ?: "https://levgames.nl/jonazwetsloot/chat/api/")
+
+// Load the URL only if it starts with http or https, otherwise load the default URL
+        if (lastVisitedUrl != null && (lastVisitedUrl.startsWith("http") || lastVisitedUrl.startsWith("https"))) {
+            webView.loadUrl(lastVisitedUrl)
+        } else {
+            webView.loadUrl("https://levgames.nl/jonazwetsloot/chat/api/")
+        }
+
 
         // Adjust for system bars
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
@@ -102,6 +131,14 @@ class MainActivity : AppCompatActivity() {
         // Ensure textboxes move above the keyboard
         adjustWebViewForKeyboard()
     }
+
+
+    fun isNetworkAvailable(context: Context): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo: NetworkInfo? = cm.activeNetworkInfo
+        return networkInfo != null && networkInfo.isConnected
+    }
+
 
     private fun checkForUpdate() {
         // Get the current app version
