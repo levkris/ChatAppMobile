@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 super.onReceivedError(view, request, error)
                 if (isNetworkAvailable(applicationContext)) {
-                    webView.loadUrl("about:blank")  // Load a blank page or show error page
+
                 } else {
                     webView.loadUrl("file:///android_asset/nowifi.html")  // No network error page
                 }
