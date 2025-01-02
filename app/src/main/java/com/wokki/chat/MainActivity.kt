@@ -1,5 +1,6 @@
 package com.wokki.chat
 
+import android.content.ActivityNotFoundException
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.KeyEvent
@@ -25,9 +26,29 @@ import android.net.Uri
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
+import android.webkit.WebChromeClient.FileChooserParams
 
 class MainActivity : AppCompatActivity() {
+    private var uploadMessage: ValueCallback<Array<Uri>>? = null
+    private val FILE_CHOOSER_REQUEST_CODE = 1000
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
+            if (uploadMessage == null) return
+            val results = if (resultCode == RESULT_OK && data != null) {
+                arrayOf(Uri.parse(data.dataString))
+            } else {
+                null
+            }
+            uploadMessage?.onReceiveValue(results)
+            uploadMessage = null
+        }
+    }
 
     private lateinit var webView: WebView
     private lateinit var sharedPreferences: SharedPreferences
@@ -65,11 +86,9 @@ class MainActivity : AppCompatActivity() {
         val cookieManager = android.webkit.CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
 
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                if (url != null) {
-                    logUrl(url)  // Log every URL
-                }
 
                 // If the URL is an APK link, open it in the browser
                 if (url?.endsWith(".apk") == true) {
@@ -126,14 +145,24 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        private fun logUrl(url: String) {
-                // Log the URL to the console (logcat)
-                Log.d("URLLog", "Logged URL: $url")
+        }
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams
+            ): Boolean {
+                uploadMessage = filePathCallback
 
-                // Save the URL to SharedPreferences
-                val loggedUrls = sharedPreferences.getStringSet("loggedUrls", mutableSetOf()) ?: mutableSetOf()
-                loggedUrls.add(url) // Add the new URL to the set
-                sharedPreferences.edit().putStringSet("loggedUrls", loggedUrls).apply() // Save the updated set
+                val intent = fileChooserParams.createIntent()
+                return try {
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST_CODE)
+                    true
+                } catch (e: ActivityNotFoundException) {
+                    uploadMessage = null
+                    Toast.makeText(this@MainActivity, "Cannot open file chooser", Toast.LENGTH_SHORT).show()
+                    false
+                }
             }
         }
 
