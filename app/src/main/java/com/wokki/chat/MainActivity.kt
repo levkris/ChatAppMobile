@@ -62,53 +62,81 @@ class MainActivity : AppCompatActivity() {
         webSettings.useWideViewPort = true
         webSettings.loadWithOverviewMode = true
 
-        // Set up the WebViewClient to handle links inside the WebView
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+
         webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String) {
-                super.onPageFinished(view, url)
-
-                // Check for update only after the page has finished loading
-                checkForUpdate()
-
-                // Inject JavaScript to hide the androidAppNotif element after the page is loaded
-                val jsCode = """
-                    var androidAppNotif = document.getElementById('androidAppNotif');
-                    if (androidAppNotif) {
-                        androidAppNotif.style.display = 'none';
-                    }
-                """
-                // Execute JavaScript to hide the element
-                webView.evaluateJavascript(jsCode, null)
-            }
-
-
-
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                if (url != null) {
+                    logUrl(url)  // Log every URL
+                }
+
                 // If the URL is an APK link, open it in the browser
                 if (url?.endsWith(".apk") == true) {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     startActivity(intent)
                     return true
                 }
-                return super.shouldOverrideUrlLoading(view, url)
-            }
-                override fun onReceivedError(
-                    view: WebView, request: WebResourceRequest,
-                    error: WebResourceError
-                ) {
-                    super.onReceivedError(view, request, error)
 
-                    // Check if there is an internet connection
-                    if (isNetworkAvailable(applicationContext)) {
-                        // If internet is available but error still occurs, load a fallback page
-                        webView.loadUrl("about:blank")  // Load a blank page or show error page
-                    } else {
-                        // If there's no internet, load the "no Wi-Fi" page
-                        webView.loadUrl("file:///android_asset/nowifi.html")
+                // Define the allowed URL patterns
+                val allowedUrlPatterns = listOf(
+                    "https://levgames.nl/jonazwetsloot/chat/api",
+                    "http://levgames.nl/jonazwetsloot/chat/api",
+                    "https://jonazwetsloot.nl/chat/api"
+                )
+
+                // If the URL matches one of the allowed patterns, load it in the WebView
+                for (pattern in allowedUrlPatterns) {
+                    if (url?.startsWith(pattern) == true) {  // Safe call for nullable URL
+                        view?.loadUrl(url)  // Open the URL inside the WebView
+                        return true
                     }
                 }
 
+                // If the URL doesn't match the allowed patterns, open it in an external web browser
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+                return true
+            }
+
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                Log.d("WebView", "Page Started: $url")
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                Log.d("WebView", "Page Finished: $url")
+                checkForUpdate()
+                val jsCode = """
+            var androidAppNotif = document.getElementById('androidAppNotif');
+            if (androidAppNotif) {
+                androidAppNotif.style.display = 'none';
+            }
+        """
+                webView.evaluateJavascript(jsCode, null)
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                super.onReceivedError(view, request, error)
+                if (isNetworkAvailable(applicationContext)) {
+                    webView.loadUrl("about:blank")  // Load a blank page or show error page
+                } else {
+                    webView.loadUrl("file:///android_asset/nowifi.html")  // No network error page
+                }
+            }
+
+        private fun logUrl(url: String) {
+                // Log the URL to the console (logcat)
+                Log.d("URLLog", "Logged URL: $url")
+
+                // Save the URL to SharedPreferences
+                val loggedUrls = sharedPreferences.getStringSet("loggedUrls", mutableSetOf()) ?: mutableSetOf()
+                loggedUrls.add(url) // Add the new URL to the set
+                sharedPreferences.edit().putStringSet("loggedUrls", loggedUrls).apply() // Save the updated set
+            }
         }
+
 
 // Load the last visited URL from SharedPreferences or a default URL
         val lastVisitedUrl = sharedPreferences.getString("lastVisitedUrl", "https://levgames.nl/jonazwetsloot/chat/api/")
