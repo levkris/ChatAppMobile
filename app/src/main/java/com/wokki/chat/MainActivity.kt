@@ -4,57 +4,38 @@ import android.content.ActivityNotFoundException
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.KeyEvent
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.constraintlayout.widget.ConstraintLayout
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.AsyncTask
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Uri
+import android.os.Build
 import android.util.Log
-import android.webkit.WebResourceRequest
-import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import android.content.Intent
-import android.net.Uri
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkInfo
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebChromeClient.FileChooserParams
 
 class MainActivity : AppCompatActivity() {
-    private var uploadMessage: ValueCallback<Array<Uri>>? = null
-    private val FILE_CHOOSER_REQUEST_CODE = 1000
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
-            if (uploadMessage == null) return
-            val results = if (resultCode == RESULT_OK && data != null) {
-                arrayOf(Uri.parse(data.dataString))
-            } else {
-                null
-            }
-            uploadMessage?.onReceiveValue(results)
-            uploadMessage = null
-        }
-    }
 
     private lateinit var webView: WebView
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var rootLayout: ConstraintLayout
     private var initialLayoutTop: Int = 0
     private val appVersionUrl = "https://levgames.nl/jonazwetsloot/chat/api/app/version.json" // URL to fetch the version info
+
+    private val FILECHOOSER_RESULTCODE = 1
+    private val REQUEST_SELECT_FILE = 2
+    private var mUploadMessage: ValueCallback<Uri>? = null
+    private var uploadMessage: ValueCallback<Array<Uri>>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,54 +46,46 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences = getSharedPreferences("WebViewPrefs", MODE_PRIVATE)
 
         webView = findViewById(R.id.webView)
-        rootLayout = findViewById(R.id.main)  // Use ConstraintLayout here
+        rootLayout = findViewById(R.id.main)
 
         // Enable JavaScript
         val webSettings: WebSettings = webView.settings
         webSettings.javaScriptEnabled = true
-
-        // Enable LocalStorage
         webSettings.domStorageEnabled = true
-
-        // Disable zooming
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false
         webSettings.displayZoomControls = false
-
-        // Enable wide viewport and set zoomed out to the max
         webSettings.useWideViewPort = true
         webSettings.loadWithOverviewMode = true
 
         val cookieManager = android.webkit.CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
 
-
+        // WebViewClient to control URL loading
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
 
-                // If the URL is an APK link, open it in the browser
+                // Handle APK links
                 if (url?.endsWith(".apk") == true) {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     startActivity(intent)
                     return true
                 }
 
-                // Define the allowed URL patterns
+                // Handle allowed URLs
                 val allowedUrlPatterns = listOf(
                     "https://levgames.nl/jonazwetsloot/chat/api",
                     "http://levgames.nl/jonazwetsloot/chat/api",
                     "https://jonazwetsloot.nl/chat/api"
                 )
-
-                // If the URL matches one of the allowed patterns, load it in the WebView
                 for (pattern in allowedUrlPatterns) {
-                    if (url?.startsWith(pattern) == true) {  // Safe call for nullable URL
-                        view?.loadUrl(url)  // Open the URL inside the WebView
+                    if (url?.startsWith(pattern) == true) {
+                        view?.loadUrl(url)
                         return true
                     }
                 }
 
-                // If the URL doesn't match the allowed patterns, open it in an external web browser
+                // Open other URLs in external browser
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 startActivity(intent)
                 return true
@@ -120,63 +93,64 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                Log.d("WebView", "Page Started: $url")
+                // Log page load
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                Log.d("WebView", "Page Finished: $url")
                 checkForUpdate()
+                // Hide update notification if exists
                 val jsCode = """
-            var androidAppNotif = document.getElementById('androidAppNotif');
-            if (androidAppNotif) {
-                androidAppNotif.style.display = 'none';
-            }
-        """
+                    var androidAppNotif = document.getElementById('androidAppNotif');
+                    if (androidAppNotif) {
+                        androidAppNotif.style.display = 'none';
+                    }
+                """
                 webView.evaluateJavascript(jsCode, null)
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 super.onReceivedError(view, request, error)
-                if (isNetworkAvailable(applicationContext)) {
-
-                } else {
-                    webView.loadUrl("file:///android_asset/nowifi.html")  // No network error page
+                if (!isNetworkAvailable()) {
+                    webView.loadUrl("file:///android_asset/nowifi.html")
                 }
             }
-
         }
-        webView.webChromeClient = object : WebChromeClient() {
+
+        webView.setWebChromeClient(object : WebChromeClient() {
             override fun onShowFileChooser(
                 webView: WebView?,
-                filePathCallback: ValueCallback<Array<Uri>>,
-                fileChooserParams: FileChooserParams
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
             ): Boolean {
-                uploadMessage = filePathCallback
-
-                val intent = fileChooserParams.createIntent()
-                return try {
-                    startActivityForResult(intent, FILE_CHOOSER_REQUEST_CODE)
-                    true
-                } catch (e: ActivityNotFoundException) {
-                    uploadMessage = null
-                    Toast.makeText(this@MainActivity, "Cannot open file chooser", Toast.LENGTH_SHORT).show()
-                    false
+                if (filePathCallback != null) {
+                    uploadMessage = filePathCallback
+                    val intent = fileChooserParams?.createIntent()
+                    try {
+                        // Check if the intent is null
+                        if (intent != null) {
+                            startActivityForResult(intent, REQUEST_SELECT_FILE)
+                        } else {
+                            Toast.makeText(this@MainActivity, "File chooser not supported", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: ActivityNotFoundException) {
+                        uploadMessage = null
+                        Toast.makeText(this@MainActivity, "File upload not supported", Toast.LENGTH_SHORT).show()
+                        return false
+                    }
                 }
+                return true
             }
-        }
+        })
 
 
-// Load the last visited URL from SharedPreferences or a default URL
-        val lastVisitedUrl = sharedPreferences.getString("lastVisitedUrl", "https://levgames.nl/jonazwetsloot/chat/api/")
-
-// Load the URL only if it starts with http or https, otherwise load the default URL
-        if (lastVisitedUrl != null && (lastVisitedUrl.startsWith("http") || lastVisitedUrl.startsWith("https"))) {
+        // Load the last visited URL or default to a set URL
+        val lastVisitedUrl = sharedPreferences.getString("lastVisitedUrl", "https://levgames.nl/jonazwetsloot/chat/api/") ?: ""
+        if (lastVisitedUrl.startsWith("http")) {
             webView.loadUrl(lastVisitedUrl)
         } else {
             webView.loadUrl("https://levgames.nl/jonazwetsloot/chat/api/")
         }
-
 
         // Adjust for system bars
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
@@ -184,68 +158,52 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+            adjustWebViewForKeyboard()
 
-        // Ensure textboxes move above the keyboard
-        adjustWebViewForKeyboard()
     }
 
 
-    fun isNetworkAvailable(context: Context): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val networkInfo: NetworkInfo? = cm.activeNetworkInfo
-        return networkInfo != null && networkInfo.isConnected
-    }
 
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkInfo = cm.activeNetworkInfo
+        return networkInfo?.isConnected == true
+    }
 
     private fun checkForUpdate() {
-        // Get the current app version
-        val currentVersion = getAppVersion()
-
-        // Fetch the version number from the server
-        FetchVersionTask().execute(currentVersion)
-    }
-
-    private fun getAppVersion(): String {
-        val packageInfo: PackageInfo = packageManager.getPackageInfo(packageName, 0)
-        return packageInfo.versionName ?: "0.0.0"
-    }
-
-    private inner class FetchVersionTask : AsyncTask<String, Void, String>() {
-
-        override fun doInBackground(vararg params: String?): String? {
-            try {
-                // Make a request to fetch version.json from the server
-                val url = URL(appVersionUrl)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connect()
-
-                val inputStream = connection.inputStream
-                val response = inputStream.bufferedReader().use { it.readText() }
-                val jsonResponse = JSONObject(response)
-
-                // Assuming the version is provided as a string under "version"
-                return jsonResponse.optString("version")
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error fetching version info", e)
-            }
-            return null
-        }
-
-        override fun onPostExecute(result: String?) {
-            super.onPostExecute(result)
-
-            if (result != null && isNewVersionAvailable(result)) {
-                // New version available, show an HTML notification in the WebView
+        lifecycleScope.launch {
+            val currentVersion = getAppVersion()
+            val serverVersion = fetchServerVersion()
+            if (serverVersion != null && isNewVersionAvailable(serverVersion, currentVersion)) {
                 showUpdateNotification()
             }
         }
     }
 
-    private fun isNewVersionAvailable(serverVersion: String): Boolean {
-        val currentVersion = getAppVersion()
+    private suspend fun fetchServerVersion(): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL(appVersionUrl)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connect()
+                val inputStream = connection.inputStream
+                val response = inputStream.bufferedReader().use { it.readText() }
+                val jsonResponse = JSONObject(response)
+                jsonResponse.optString("version")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching version info", e)
+                null
+            }
+        }
+    }
 
-        // Compare version numbers (this could be done more robustly with a version comparison library)
+    private fun getAppVersion(): String {
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        return packageInfo.versionName ?: "0.0.0"
+    }
+
+    private fun isNewVersionAvailable(serverVersion: String, currentVersion: String): Boolean {
         return serverVersion > currentVersion
     }
 
@@ -257,22 +215,6 @@ class MainActivity : AppCompatActivity() {
             }
         """
         webView.evaluateJavascript(jsCode, null)
-    }
-
-    // Override the back button behavior to support back swipe functionality
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
-            webView.goBack() // Go to the last page in the WebView's history
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
-    // Save the current URL when the activity is paused
-    override fun onPause() {
-        super.onPause()
-        val currentUrl = webView.url
-        sharedPreferences.edit().putString("lastVisitedUrl", currentUrl).apply() // Save the current URL to SharedPreferences
     }
 
     // Adjust WebView content and move the entire layout upwards when the keyboard is visible
@@ -301,4 +243,59 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    // Override the back button behavior to support back swipe functionality
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
+            webView.goBack()  // Go to the last page in the WebView's history
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    // Save the current URL when the activity is paused
+    override fun onPause() {
+        super.onPause()
+        val currentUrl = webView.url
+        sharedPreferences.edit().putString("lastVisitedUrl", currentUrl).apply()  // Save the current URL to SharedPreferences
+    }
+
+    // Handle file selection result
+    override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
+        super.onActivityResult(requestCode, resultCode, intent)
+
+        if (requestCode == REQUEST_SELECT_FILE) {
+            if (resultCode == RESULT_OK) {
+                var dataArray: Array<Uri>? = null
+
+                // Check if the data is not null and the result contains data
+                if (intent != null) {
+                    dataArray = if (intent.data != null) {
+                        arrayOf(intent.data!!)  // Single file selected
+                    } else if (intent.clipData != null) {
+                        // Multiple files selected
+                        val clipData = intent.clipData
+                        val uriList = mutableListOf<Uri>()
+                        for (i in 0 until clipData!!.itemCount) {
+                            uriList.add(clipData.getItemAt(i).uri)
+                        }
+                        uriList.toTypedArray()
+                    } else {
+                        null
+                    }
+                }
+
+                // If files are selected, call the appropriate callback
+                if (dataArray != null) {
+                    uploadMessage?.onReceiveValue(dataArray)
+                } else {
+                    uploadMessage?.onReceiveValue(null)
+                }
+                uploadMessage = null  // Reset the upload message
+            } else {
+                uploadMessage?.onReceiveValue(null)
+                uploadMessage = null  // Reset the upload message
+            }
+        }
+    }
+
 }
