@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
                 val allowedUrlPatterns = listOf(
                     "https://levgames.nl/jonazwetsloot/chat/api",
                     "http://levgames.nl/jonazwetsloot/chat/api",
-                    "https://jonazwetsloot.nl/chat/api"
+                    "https://chat.jonazwetsloot.nl/api"
                 )
                 for (pattern in allowedUrlPatterns) {
                     if (url?.startsWith(pattern) == true) {
