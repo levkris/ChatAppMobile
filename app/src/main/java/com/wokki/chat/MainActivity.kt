@@ -12,10 +12,13 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,6 +26,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import com.google.android.material.color.MaterialColors
 
 class MainActivity : AppCompatActivity() {
 
@@ -107,6 +111,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 """
                 webView.evaluateJavascript(jsCode, null)
+                applySystemColorsToWebView()
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -162,6 +167,60 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun getSystemColors(): Map<String, Int> {
+        val colors = mutableMapOf<String, Int>()
+
+        // Get the current UI mode (light or dark mode)
+        val isNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
+        // Light Mode Colors
+        if (!isNightMode) {
+            colors["--background"] = ContextCompat.getColor(this, android.R.color.system_neutral1_10)
+            colors["--chat-bg"] = ContextCompat.getColor(this, android.R.color.system_neutral1_100)
+            colors["--chat-text"] = ContextCompat.getColor(this, android.R.color.primary_text_light)
+            colors["--text"] = ContextCompat.getColor(this, android.R.color.primary_text_light)
+            colors["--main"] = ContextCompat.getColor(this, android.R.color.system_accent1_100)
+            colors["--secondary"] = ContextCompat.getColor(this, android.R.color.system_accent1_600)
+            colors["--select"] = ContextCompat.getColor(this, android.R.color.system_accent1_50)
+            colors["--separation"] = ContextCompat.getColor(this, android.R.color.primary_text_light)
+        } else { // Dark Mode Colors
+            colors["--background"] = ContextCompat.getColor(this, android.R.color.system_neutral1_900)
+            colors["--chat-bg"] = ContextCompat.getColor(this, android.R.color.system_neutral1_800)
+            colors["--chat-text"] = ContextCompat.getColor(this, android.R.color.primary_text_dark)
+            colors["--text"] = ContextCompat.getColor(this, android.R.color.primary_text_dark)
+            colors["--main"] = ContextCompat.getColor(this, android.R.color.system_accent1_600)
+            colors["--secondary"] = ContextCompat.getColor(this, android.R.color.system_accent1_100)
+            colors["--select"] = ContextCompat.getColor(this, android.R.color.system_accent1_800)
+            colors["--separation"] = ContextCompat.getColor(this, android.R.color.system_neutral1_600)
+        }
+
+        return colors
+    }
+
+
+    private fun applySystemColorsToWebView() {
+        val systemColors = getSystemColors()
+
+        // Building the CSS string
+        val cssBuilder = StringBuilder(":root {")
+        for ((key, value) in systemColors) {
+            val hexColor = String.format("#%06X", (0xFFFFFF and value)) // Convert to HEX
+            cssBuilder.append("$key: $hexColor;")
+        }
+        cssBuilder.append("}")
+
+        val css = cssBuilder.toString()
+
+        // JavaScript code to inject CSS into the WebView
+        val jsCode = """
+        var styleTag = document.createElement('style');
+        styleTag.innerHTML = `$css`;
+        document.head.appendChild(styleTag);
+    """.trimIndent()
+
+        // Inject JavaScript into the WebView
+        webView.evaluateJavascript(jsCode, null)
+    }
 
 
     private fun isNetworkAvailable(): Boolean {
@@ -226,7 +285,7 @@ class MainActivity : AppCompatActivity() {
             val keypadHeight = screenHeight - r.bottom
 
             // Only adjust layout if the URL starts with "levgames.nl/jonazwetsloot/chat/api"
-            if (webView.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/api") == true) {
+            if (webView.url?.startsWith("https://levgames.nl/jonazwetsloot/chat/api/inbox") == true) {
                 // If the keyboard is visible, move the entire layout upwards
                 if (keypadHeight > screenHeight * 0.15) {
                     // Save the initial top position of the layout
