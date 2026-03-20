@@ -1,5 +1,8 @@
 # Chat - Social Media App
 
+> [!WARNING]
+> This project is archived and no longer maintained.
+
 Chat is a social media mobile application currently available for Android and Web. Built with Kotlin, the app leverages HTML to render the user interface inside the app. With Chat, users can easily connect, share content, and communicate with others.
 
 ## Features
@@ -20,7 +23,6 @@ To build and run the app locally, ensure you have the following installed:
 ## Build
 
 ### Clone the repository
-
 ```bash
 git clone https://github.com/levkris/ChatAppMobile.git
 ```
